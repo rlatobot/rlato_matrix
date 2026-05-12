@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RLATO SYSTEM — Breach the Matrix</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      background: #000;
+      color: #00ff41;
+      font-family: 'Share Tech Mono', monospace;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    canvas#rain {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      opacity: 0.17;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .scanline {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.035) 2px,
+        rgba(0,0,0,0.035) 4px
+      );
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .page {
+      position: relative;
+      z-index: 2;
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 3rem 1.5rem 5rem;
+    }
+
+    /* ─── ANIMATIONS ─── */
+    @keyframes flicker {
+      0%,93%,100%{opacity:1;}
+      94%{opacity:.35;}95%{opacity:1;}
+      96%{opacity:.1;}97%{opacity:1;}
+    }
+    @keyframes appear {
+      to{opacity:1;}
+    }
+    @keyframes fadeIn {
+      to{opacity:1;}
+    }
+    @keyframes pulse {
+      0%,100%{box-shadow:0 0 8px #00ff4130;}
+      50%{box-shadow:0 0 20px #00ff4160;}
+    }
+    @keyframes blink {
+      50%{opacity:0;}
+    }
+
+    /* ─── BOOT SEQUENCE ─── */
+    .boot { margin-bottom: 2rem; }
+    .boot-line {
+      font-size: .68rem;
+      color: #00661a;
+      letter-spacing: .1em;
+      margin-bottom: .25rem;
+      opacity: 0;
+      animation: appear .1s forwards;
+    }
+    .boot-line:nth-child(1){animation-delay:.1s;}
+    .boot-line:nth-child(2){animation-delay:.5s;}
+    .boot-line:nth-child(3){animation-delay:.9s;}
+    .boot-line:nth-child(4){animation-delay:1.3s;}
+
+    .cursor {
+      display: inline-block;
+      width: 8px; height: 1em;
+      background: #00ff41;
+      vertical-align: middle;
+      animation: blink 1s step-start infinite;
+      margin-left: 4px;
+    }
+
+    .main { opacity: 0; animation: fadeIn .5s forwards; animation-delay: 1.9s; }
+
+    /* ─── SECTION HEADERS ─── */
+    .glitch-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(1.5rem, 5vw, 2.4rem);
+      font-weight: 900;
+      color: #00ff41;
+      text-align: center;
+      letter-spacing: .18em;
+      text-shadow: 0 0 22px #00ff4155;
+      animation: flicker 4.5s infinite;
+      margin-bottom: .35rem;
+    }
+
+    .page-sub {
+      text-align: center;
+      font-size: .65rem;
+      color: #00661a;
+      letter-spacing: .28em;
+      margin-bottom: 2.5rem;
+    }
+
+    .section-label {
+      font-size: .62rem;
+      letter-spacing: .28em;
+      color: #00661a;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid #00ff4125;
+      padding-bottom: .4rem;
+    }
+
+    /* ─── DIVIDER ─── */
+    .divider {
+      display: flex; align-items: center; gap: .75rem;
+      margin: 3rem 0 2.5rem;
+    }
+    .dline { flex: 1; height: 1px; background: #00ff4130; }
+    .dlabel {
+      font-family: 'Orbitron', sans-serif;
+      font-size: .6rem; letter-spacing: .32em; color: #00661a;
+    }
+
+    /* ─── PERFORMANCE CARDS ─── */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .card {
+      border: 1px solid #00ff4135;
+      background: #000d00;
+      padding: 1.3rem 1.1rem;
+      position: relative;
+      transition: border-color .3s, box-shadow .3s;
+    }
+    .card:hover { border-color: #00ff41; box-shadow: 0 0 28px #00ff4128, inset 0 0 20px #00ff4108; }
+
+    .card.v13 { border-color: #ff440099; background: #0d0000; }
+    .card.v13:hover { border-color: #ff4400; box-shadow: 0 0 28px #ff440028, inset 0 0 20px #ff440008; }
+
+    /* corner brackets */
+    .card::before, .card::after,
+    .card .br, .card .tl2 { content: ''; position: absolute; width: 9px; height: 9px; }
+    .card::before { top:-1px; left:-1px; border-top:2px solid; border-left:2px solid; }
+    .card::after  { top:-1px; right:-1px; border-top:2px solid; border-right:2px solid; }
+    .card .br     { bottom:-1px; right:-1px; border-bottom:2px solid; border-right:2px solid; }
+    .card .tl2    { bottom:-1px; left:-1px; border-bottom:2px solid; border-left:2px solid; }
+    .card.v13::before,.card.v13::after,.card.v13 .br,.card.v13 .tl2 { border-color:#ff4400; }
+    .card.v14::before,.card.v14::after,.card.v14 .br,.card.v14 .tl2 { border-color:#00ff41; }
+
+    .card-version {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.1rem; font-weight: 700;
+      margin-bottom: .2rem;
+    }
+    .card.v13 .card-version { color:#ff4400; text-shadow:0 0 10px #ff440077; }
+    .card.v14 .card-version { color:#00ff41; text-shadow:0 0 10px #00ff4177; }
+
+    .card-sub { font-size: .6rem; color: #555; letter-spacing: .1em; margin-bottom: 1rem; }
+
+    .roi-badge {
+      display: inline-block;
+      font-family: 'Orbitron', sans-serif;
+      font-size: .72rem; font-weight: 700;
+      padding: .22rem .6rem;
+      margin-bottom: 1rem;
+      border: 1px solid;
+    }
+    .card.v13 .roi-badge { background:#1a0000; border-color:#ff4400; color:#ff6622; box-shadow:0 0 10px #ff440040; }
+    .card.v14 .roi-badge { background:#001a00; border-color:#00ff41; color:#00ff41; box-shadow:0 0 10px #00ff4140; }
+
+    .stat-row {
+      display: flex; justify-content: space-between; align-items: baseline;
+      padding: .33rem 0;
+      border-bottom: 1px solid #ffffff07;
+      font-size: .7rem;
+    }
+    .stat-row:last-child { border: none; }
+    .stat-label { color: #445; }
+    .stat-val { font-weight: 700; font-size: .76rem; }
+    .card.v13 .stat-val.accent { color: #ff6622; }
+    .card.v14 .stat-val.accent { color: #00ff41; }
+    .stat-val.neutral { color: #888; }
+
+    /* ─── PROJECTIONS ─── */
+    .proj-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .75rem;
+      margin-bottom: 2rem;
+    }
+    .proj-card {
+      border: 1px solid #00ff4118;
+      background: transparent;
+      padding: 1rem 1.1rem;
+      position: relative;
+    }
+    .proj-card.v13p { border-color: #ff440022; }
+    .proj-card::before { content:''; position:absolute; top:-1px; left:-1px; width:8px; height:8px; border-top:1px solid; border-left:1px solid; }
+    .proj-card::after  { content:''; position:absolute; bottom:-1px; right:-1px; width:8px; height:8px; border-bottom:1px solid; border-right:1px solid; }
+    .proj-card.v13p::before,.proj-card.v13p::after { border-color:#ff440055; }
+    .proj-card:not(.v13p)::before,.proj-card:not(.v13p)::after { border-color:#00ff4155; }
+
+    .proj-ver { font-size:.6rem; letter-spacing:.18em; margin-bottom:.75rem; }
+    .proj-card.v13p .proj-ver { color:#ff4400; }
+    .proj-card:not(.v13p) .proj-ver { color:#00ff41; }
+
+    .proj-row {
+      display: flex; justify-content: space-between;
+      font-size: .67rem; padding: .28rem 0;
+      border-bottom: 1px solid #ffffff05;
+      color: #556;
+    }
+    .proj-row:last-child { border: none; }
+    .proj-val { font-weight: 700; }
+    .proj-card.v13p .proj-val { color:#ff5511; }
+    .proj-card:not(.v13p) .proj-val { color:#00cc33; }
+
+    .disclaimer {
+      font-size: .6rem; color: #334;
+      border-top: 1px solid #00ff4112;
+      padding-top: .85rem; line-height: 1.7;
+      letter-spacing: .05em;
+      margin-bottom: 0;
+    }
+
+    /* ─── PAYMENT SECTION ─── */
+    .pay-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(1rem, 4vw, 1.6rem);
+      font-weight: 900; color: #00ff41;
+      text-align: center; letter-spacing: .15em;
+      text-shadow: 0 0 18px #00ff4150;
+      animation: flicker 5s infinite;
+      margin-bottom: .35rem;
+    }
+    .pay-sub {
+      text-align: center; font-size: .62rem;
+      color: #00661a; letter-spacing: .22em;
+      margin-bottom: 2rem;
+    }
+
+    .steps-row {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      align-items: center; gap: .4rem;
+      margin-bottom: 2rem;
+    }
+    .sbox {
+      border: 1px solid #00ff4122; background: #000d00;
+      padding: .85rem .7rem; text-align: center; position: relative;
+    }
+    .sbox::before,.sbox::after { content:''; position:absolute; width:7px; height:7px; }
+    .sbox::before { top:-1px; left:-1px; border-top:2px solid #00ff41; border-left:2px solid #00ff41; }
+    .sbox::after  { bottom:-1px; right:-1px; border-bottom:2px solid #00ff41; border-right:2px solid #00ff41; }
+    .snum { font-family:'Orbitron',sans-serif; font-size:1.3rem; font-weight:900; color:#00ff4125; line-height:1; margin-bottom:.3rem; }
+    .stxt { font-size:.58rem; color:#556; letter-spacing:.06em; line-height:1.5; }
+    .stxt strong { display:block; color:#00aa2c; font-size:.6rem; margin-bottom:.15rem; }
+    .sarrow { font-size:.9rem; color:#00ff4130; text-align:center; }
+
+    /* wallet card */
+    .wcard {
+      border: 1px solid #00ff4135;
+      background: #000d00;
+      padding: 1.4rem 1.2rem;
+      margin-bottom: 1rem;
+      position: relative;
+      animation: pulse 3s ease-in-out infinite;
+    }
+    .wcard::before { content:''; position:absolute; top:-1px; left:-1px; width:10px; height:10px; border-top:2px solid #00ff41; border-left:2px solid #00ff41; }
+    .wcard::after  { content:''; position:absolute; bottom:-1px; right:-1px; width:10px; height:10px; border-bottom:2px solid #00ff41; border-right:2px solid #00ff41; }
+
+    .wheat { display:flex; align-items:center; gap:.75rem; margin-bottom:1.25rem; }
+    .xicon {
+      width:38px; height:38px; border-radius:50%;
+      background:#040f1a; border:1px solid #1a6baa;
+      display:flex; align-items:center; justify-content:center;
+      font-family:'Orbitron',sans-serif; font-weight:900;
+      font-size:.65rem; color:#4aa8ff; flex-shrink:0;
+      text-shadow:0 0 8px #4aa8ff77;
+    }
+    .wname { font-family:'Orbitron',sans-serif; font-size:.95rem; font-weight:700; color:#4aa8ff; text-shadow:0 0 10px #4aa8ff44; }
+    .wnet  { font-size:.58rem; color:#1a3a55; letter-spacing:.15em; margin-top:.15rem; }
+
+    .fblock { margin-bottom:1.1rem; }
+    .fblock:last-child { margin-bottom:0; }
+    .flabel { font-size:.58rem; letter-spacing:.25em; color:#00661a; text-transform:uppercase; margin-bottom:.35rem; }
+    .frow {
+      display:flex; align-items:center; gap:.5rem;
+      background:#000500; border:1px solid #00ff4225;
+      padding:.6rem .75rem;
+    }
+    .fval { flex:1; font-size:.72rem; color:#00ff41; word-break:break-all; line-height:1.4; letter-spacing:.03em; }
+    .fval.tagv {
+      font-family:'Orbitron',sans-serif; font-size:1.1rem; font-weight:700;
+      color:#ffcc00; text-shadow:0 0 10px #ffcc0050; letter-spacing:.14em;
+    }
+
+    .cbtn {
+      background:#001200; border:1px solid #00ff4130;
+      color:#008822; font-family:'Share Tech Mono',monospace;
+      font-size:.58rem; padding:.32rem .6rem;
+      cursor:pointer; letter-spacing:.1em;
+      transition:all .2s; white-space:nowrap; flex-shrink:0;
+    }
+    .cbtn:hover { background:#002200; border-color:#00ff41; color:#00ff41; }
+    .cbtn.ok    { border-color:#00ff41; color:#00ff41; background:#001a00; }
+
+    .tagwarn {
+      display:flex; align-items:flex-start; gap:.6rem;
+      background:#110800; border:1px solid #ff660028;
+      border-left:3px solid #ff6600;
+      padding:.85rem 1rem; margin-bottom:1.5rem;
+    }
+    .wico { font-size:.85rem; color:#ff6600; flex-shrink:0; margin-top:.05rem; }
+    .wtxt { font-size:.63rem; color:#995522; line-height:1.7; letter-spacing:.04em; }
+    .wtxt strong { color:#ff8833; display:block; margin-bottom:.2rem; font-size:.65rem; letter-spacing:.1em; }
+    .wtxt em { color:#ffcc00; font-style:normal; }
+
+    .flowbox {
+      border:1px solid #00ff4115;
+      background:transparent;
+      padding:1.1rem 1.2rem; margin-bottom:1.5rem;
+    }
+    .ftitle { font-size:.58rem; letter-spacing:.25em; color:#00661a; margin-bottom:.9rem; }
+    .fitem {
+      display:flex; align-items:center; gap:.7rem;
+      font-size:.66rem; color:#445;
+      padding:.35rem 0; border-bottom:1px solid #ffffff05;
+    }
+    .fitem:last-child { border:none; }
+    .fdot { width:5px; height:5px; border-radius:50%; background:#00ff41; flex-shrink:0; box-shadow:0 0 5px #00ff41; }
+    .fitem .hl { color:#00aa2c; }
+
+    .fnote {
+      font-size:.58rem; color:#223;
+      text-align:center; letter-spacing:.07em; line-height:1.9;
+      border-top:1px solid #00ff4110; padding-top:1rem;
+    }
+    .fnote .gr { color:#00661a; }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width:560px){
+      .cards-grid,.proj-grid { grid-template-columns:1fr; }
+      .steps-row { grid-template-columns:1fr; }
+      .sarrow { display:none; }
+      .glitch-title { letter-spacing:.08em; }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="rain"></canvas>
+<div class="scanline"></div>
+
+<div class="page">
+
+  <!-- BOOT -->
+  <div class="boot">
+    <div class="boot-line">&gt; RLATO_SYSTEM :: INITIALIZING...</div>
+    <div class="boot-line">&gt; WYCKOFF_ENGINE :: LOADED [SC+TEST]</div>
+    <div class="boot-line">&gt; NAS100 :: FEED CONNECTED [MT5]</div>
+    <div class="boot-line">&gt; BREACH AUTHORIZED — ACCESS GRANTED<span class="cursor"></span></div>
+  </div>
+
+  <div class="main">
+
+    <!-- ══════════════════════════════════════
+         SECTION 1 — PERFORMANCE
+    ══════════════════════════════════════ -->
+    <div class="glitch-title">RLATO SYSTEM</div>
+    <div class="page-sub">REAL PERFORMANCE — RECORDED PERIOD</div>
+
+    <div class="section-label">&gt; Active versions / performance comparison</div>
+
+    <div class="cards-grid">
+      <!-- V13 -->
+      <div class="card v13">
+        <span class="br"></span><span class="tl2"></span>
+        <div class="card-version">RLATO v13</div>
+        <div class="card-sub">NAS100 · WYCKOFF SC+TEST &nbsp;·&nbsp; HIGHER RISK</div>
+        <div class="roi-badge">+56.4% ROI</div>
+        <div class="stat-row"><span class="stat-label">Starting balance</span><span class="stat-val neutral">$326 USD</span></div>
+        <div class="stat-row"><span class="stat-label">Final balance</span><span class="stat-val accent">$510 USD</span></div>
+        <div class="stat-row"><span class="stat-label">Net profit</span><span class="stat-val accent">+$184 USD</span></div>
+        <div class="stat-row"><span class="stat-label">ROI</span><span class="stat-val accent">+56.44%</span></div>
+        <div class="stat-row"><span class="stat-label">Return per dollar</span><span class="stat-val accent">$0.564 / $1</span></div>
+      </div>
+
+      <!-- V14 -->
+      <div class="card v14">
+        <span class="br"></span><span class="tl2"></span>
+        <div class="card-version">RLATO v14</div>
+        <div class="card-sub">NAS100 · WYCKOFF SC+TEST + MUSASHI</div>
+        <div class="roi-badge">+47.9% ROI</div>
+        <div class="stat-row"><span class="stat-label">Starting balance</span><span class="stat-val neutral">$311 USD</span></div>
+        <div class="stat-row"><span class="stat-label">Final balance</span><span class="stat-val accent">$460 USD</span></div>
+        <div class="stat-row"><span class="stat-label">Net profit</span><span class="stat-val accent">+$149 USD</span></div>
+        <div class="stat-row"><span class="stat-label">ROI</span><span class="stat-val accent">+47.92%</span></div>
+        <div class="stat-row"><span class="stat-label">Return per dollar</span><span class="stat-val accent">$0.479 / $1</span></div>
+      </div>
+    </div>
+
+    <!-- PROJECTIONS -->
+    <div class="section-label">&gt; Estimated monthly projection [conservative linear extrapolation]</div>
+
+    <div class="proj-grid">
+      <div class="proj-card v13p">
+        <div class="proj-ver">&gt; V13 — same monthly ROI</div>
+        <div class="proj-row"><span>$1,000 invested</span><span class="proj-val">+$564/mo</span></div>
+        <div class="proj-row"><span>$5,000 invested</span><span class="proj-val">+$2,822/mo</span></div>
+        <div class="proj-row"><span>$10,000 invested</span><span class="proj-val">+$5,644/mo</span></div>
+      </div>
+      <div class="proj-card">
+        <div class="proj-ver">&gt; V14 — same monthly ROI</div>
+        <div class="proj-row"><span>$1,000 invested</span><span class="proj-val">+$479/mo</span></div>
+        <div class="proj-row"><span>$5,000 invested</span><span class="proj-val">+$2,396/mo</span></div>
+        <div class="proj-row"><span>$10,000 invested</span><span class="proj-val">+$4,792/mo</span></div>
+      </div>
+    </div>
+
+    <div class="disclaimer">
+      * Projection without compounding. Actual ROI varies with market conditions.<br>
+      * V13 operates with higher risk exposure &nbsp;·&nbsp; V14 includes MUSASHI re-entry module<br>
+      * RLATO System — NAS100 · Wyckoff Methodology · Doo Prime · MT5
+    </div>
+
+    <!-- ══════════════════════════════════════
+         SECTION 2 — PAYMENT / LICENSE
+    ══════════════════════════════════════ -->
+    <div class="divider">
+      <div class="dline"></div>
+      <div class="dlabel">&gt;&gt; ACCESS PROTOCOL &lt;&lt;</div>
+      <div class="dline"></div>
+    </div>
+
+    <div class="pay-title">GET YOUR LICENSE</div>
+    <div class="pay-sub">&gt; SEND · CONFIRM · ACTIVATE RLATO &lt;</div>
+
+    <div class="steps-row">
+      <div class="sbox">
+        <div class="snum">01</div>
+        <div class="stxt"><strong>CHOOSE VERSION</strong>V13 high risk<br>or V14 + MUSASHI</div>
+      </div>
+      <div class="sarrow">&rsaquo;</div>
+      <div class="sbox">
+        <div class="snum">02</div>
+        <div class="stxt"><strong>SEND XRP</strong>Copy wallet address<br>&amp; destination tag</div>
+      </div>
+      <div class="sarrow">&rsaquo;</div>
+      <div class="sbox">
+        <div class="snum">03</div>
+        <div class="stxt"><strong>RECEIVE LICENSE</strong>Software delivers<br>your access key</div>
+      </div>
+    </div>
+
+    <!-- WALLET CARD -->
+    <div class="wcard">
+      <div class="wheat">
+        <div class="xicon">XRP</div>
+        <div>
+          <div class="wname">XRP — Ripple Network</div>
+          <div class="wnet">&gt; NETWORK: XRPL MAINNET &nbsp;·&nbsp; PROTOCOL: RIPPLE</div>
+        </div>
+      </div>
+
+      <div class="fblock">
+        <div class="flabel">&gt; Wallet address</div>
+        <div class="frow">
+          <div class="fval" id="addr">rLSn6Z3T8uCxbcd1oxwfGQN1Fdn5CyGujK</div>
+          <button class="cbtn" id="ba" onclick="cp('addr','ba')">COPY</button>
+        </div>
+      </div>
+
+      <div class="fblock">
+        <div class="flabel">&gt; Destination Tag &nbsp;<span style="color:#ff8833;font-size:.58rem;">[REQUIRED]</span></div>
+        <div class="frow">
+          <div class="fval tagv" id="dtag">39951234</div>
+          <button class="cbtn" id="bt" onclick="cp('dtag','bt')">COPY</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="tagwarn">
+      <div class="wico">&#9888;</div>
+      <div class="wtxt">
+        <strong>DESTINATION TAG IS MANDATORY</strong>
+        Without the tag <em>39951234</em> your payment cannot be identified on the network.
+        Enter it in your wallet before confirming the transaction. Payments without a destination tag will not be processed.
+      </div>
+    </div>
+
+    <div class="flowbox">
+      <div class="ftitle">&gt; ACTIVATION FLOW AFTER PAYMENT</div>
+      <div class="fitem"><div class="fdot"></div>You send XRP to the address with the correct destination tag</div>
+      <div class="fitem"><div class="fdot"></div>XRPL network confirms the transaction in &lt; 5 seconds</div>
+      <div class="fitem"><div class="fdot"></div><span class="hl">RLATO system verifies and generates your license</span></div>
+      <div class="fitem"><div class="fdot"></div><span class="hl">Your software receives the access file automatically</span></div>
+      <div class="fitem"><div class="fdot"></div>Activate the bot and start trading NAS100</div>
+    </div>
+
+    <div class="fnote">
+      * Licenses delivered via RLATO software &nbsp;·&nbsp; no intermediaries<br>
+      * XRPL average confirmation: &lt; 5 seconds<br>
+      <span class="gr">* Support &amp; updates: @Yair_rlato on X</span>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /page -->
+
+<script>
+  /* ─── MATRIX RAIN ─── */
+  (function(){
+    const c = document.getElementById('rain');
+    const ctx = c.getContext('2d');
+    const chars = 'ｦｧｨｩｪｫｬｭｮｯｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝRLATO01'.split('');
+    const fs = 14;
+    let cols, drops;
+
+    function resize(){
+      c.width  = window.innerWidth;
+      c.height = window.innerHeight;
+      cols  = Math.floor(c.width / fs);
+      drops = Array(cols).fill(1);
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    function draw(){
+      ctx.fillStyle = 'rgba(0,0,0,0.05)';
+      ctx.fillRect(0, 0, c.width, c.height);
+      ctx.fillStyle = '#00ff41';
+      ctx.font = fs + 'px monospace';
+      for(let i = 0; i < drops.length; i++){
+        const ch = chars[Math.floor(Math.random() * chars.length)];
+        ctx.fillText(ch, i * fs, drops[i] * fs);
+        if(drops[i] * fs > c.height && Math.random() > 0.975) drops[i] = 0;
+        drops[i]++;
+      }
+    }
+    setInterval(draw, 40);
+  })();
+
+  /* ─── COPY TO CLIPBOARD ─── */
+  function cp(valId, btnId){
+    const txt = document.getElementById(valId).innerText.trim();
+    const btn = document.getElementById(btnId);
+    navigator.clipboard.writeText(txt).then(()=>{
+      btn.textContent = '✓ COPIED';
+      btn.classList.add('ok');
+      setTimeout(()=>{ btn.textContent = 'COPY'; btn.classList.remove('ok'); }, 2000);
+    }).catch(()=>{
+      btn.textContent = 'ERROR';
+      setTimeout(()=>{ btn.textContent = 'COPY'; }, 1500);
+    });
+  }
+</script>
+</body>
+</html>
